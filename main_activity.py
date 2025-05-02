@@ -17,12 +17,28 @@ class MainActivity:
     def __init__(self):
         self.root = Tk()
         self.root.title("Keyboard Trainer")
-        self.root.geometry("1000x600")
+        
+        # Set minimum and maximum window sizes
+        self.MIN_WIDTH = 800
+        self.MIN_HEIGHT = 600
+        self.MAX_WIDTH = 1600
+        self.MAX_HEIGHT = 900
+        
+        # Set initial size and position window in center of screen
+        self.root.geometry(f"{self.MIN_WIDTH}x{self.MIN_HEIGHT}")
+        self.center_window()
+        
+        # Configure size restrictions
+        self.root.minsize(self.MIN_WIDTH, self.MIN_HEIGHT)
+        self.root.maxsize(self.MAX_WIDTH, self.MAX_HEIGHT)
+        
         self.root.configure(bg="#f0f0f0")
+        self.root.grid_rowconfigure(1, weight=1)
+        self.root.grid_columnconfigure(1, weight=1)
 
         # State
-        self.language = 'EN'  # or 'RU'
-        self.mode = 'letters'  # or 'phrases', 'texts'
+        self.language = 'EN'
+        self.mode = 'letters'
         self.highlight = True
         self.time_left = 60
         self.mistakes = 0
@@ -33,7 +49,10 @@ class MainActivity:
         self.init_styles()
         self.init_gui()
         self.set_exercise()
-
+        
+        # Bind resize event
+        self.root.bind('<Configure>', self.on_window_resize)
+        
     def init_styles(self):
         style = ttk.Style()
         style.theme_use("clam")
@@ -45,47 +64,89 @@ class MainActivity:
                        font=("Arial", 16))
 
     def init_gui(self):
-        # --- Top: Stats and Timer ---
-        stats_frame = Frame(self.root, bg="#f0f0f0")
-        stats_frame.pack(pady=10)
-        self.stats_label = Label(stats_frame, text="Errors: 0 | Speed: 0 WPM", font=("Arial", 14), bg="#f0f0f0")
-        self.stats_label.pack(side=LEFT, padx=10)
-        self.timer_label = Label(stats_frame, text="01:00", font=("Arial", 14, "bold"), bg="#f0f0f0", fg="black")
+        # Create main frames with grid
+        self.top_frame = Frame(self.root, bg="#f0f0f0")
+        self.left_frame = Frame(self.root, bg="#f0f0f0")
+        self.center_frame = Frame(self.root, bg="#f0f0f0")
+        self.bottom_frame = Frame(self.root, bg="#f0f0f0")
+
+        # Grid layout for main frames
+        self.top_frame.grid(row=0, column=0, columnspan=3, sticky="ew", pady=5)
+        self.left_frame.grid(row=1, column=0, sticky="ns", padx=10)
+        self.center_frame.grid(row=1, column=1, sticky="nsew")
+        self.bottom_frame.grid(row=2, column=0, columnspan=3, sticky="ew", pady=10)
+
+        self.setup_top_frame()
+        self.setup_left_frame()
+        self.setup_center_frame()
+        self.setup_bottom_frame()
+
+    def setup_top_frame(self):
+        # Stats and Timer with pack
+        self.stats_label = Label(self.top_frame, text="Errors: 0 | Speed: 0 WPM", 
+                               font=("Arial", 14), bg="#f0f0f0")
+        self.timer_label = Label(self.top_frame, text="01:00", 
+                               font=("Arial", 14, "bold"), bg="#f0f0f0", fg="black")
+        
+        self.stats_label.pack(side=LEFT, padx=10, expand=True)
         self.timer_label.pack(side=LEFT, padx=10)
 
-        # --- Center: Required text and input ---
-        center_frame = Frame(self.root, bg="#f0f0f0")
-        center_frame.pack(pady=10)
-        self.text_display = Text(center_frame, height=2, width=60, wrap=WORD, font=("Arial", 16), bg="#f0f0f0", borderwidth=0, highlightthickness=0, state=DISABLED)
-        self.text_display.pack()
-        self.input_entry = ttk.Entry(center_frame, style="NoBorder.TEntry", width=60, font=("Arial", 16))
-        self.input_entry.pack(pady=5)
+    def setup_left_frame(self):
+        # Control buttons with pack
+        button_configs = [
+            ("Mode: Letters", "Change Exercise", self.toggle_mode),
+            ("Lang: EN", "Change Language", self.toggle_language),
+            ("Highlight: ON", "Toggle Highlight", self.toggle_highlight)
+        ]
+
+        for btn_text, label_text, command in button_configs:
+            btn = Button(self.left_frame, text=btn_text, font=("Arial", 12),
+                        width=14, command=command)
+            btn.pack(pady=5)
+            if btn_text.startswith("Mode"):
+                self.mode_btn = btn
+            elif btn_text.startswith("Lang"):
+                self.lang_btn = btn
+            else:
+                self.hl_btn = btn
+            
+            Label(self.left_frame, text=label_text, 
+                  font=("Arial", 10), bg="#f0f0f0").pack(pady=(0, 10))
+
+    def setup_center_frame(self):
+        # Text display and input with pack
+        self.text_display = Text(self.center_frame, height=2, wrap=WORD,
+                               font=("Arial", 16), bg="#f0f0f0",
+                               borderwidth=0, highlightthickness=0)
+        self.text_display.pack(fill=X, expand=True, padx=20)
+        self.text_display.config(state=DISABLED)
+
+        input_frame = Frame(self.center_frame, bg="#f0f0f0")
+        input_frame.pack(fill=X, expand=True, padx=20)
+
+        self.input_entry = ttk.Entry(input_frame, style="NoBorder.TEntry",
+                                   font=("Arial", 16))
+        self.input_entry.pack(fill=X, expand=True)
         self.input_entry.bind('<Key>', self.on_key_press)
-        underline = Canvas(center_frame, height=2, bg="#f0f0f0", highlightthickness=0)
-        underline.pack(fill=X)
-        underline.create_line(0, 0, 600, 0, fill="black", width=2)
-        self.next_btn = Button(center_frame, text="Next Exercise", font=("Arial", 12), command=self.set_exercise)
+
+        # Underline
+        self.underline = Canvas(input_frame, height=2, bg="#f0f0f0",
+                              highlightthickness=0)
+        self.underline.pack(fill=X)
+        self.underline.create_line(0, 0, 1000, 0, fill="black", width=2,
+                                 tags="underline")
+
+        # Next button
+        self.next_btn = Button(self.center_frame, text="Next Exercise",
+                              font=("Arial", 12), command=self.set_exercise)
         self.next_btn.pack(pady=10)
         self.next_btn.pack_forget()
 
-        # --- Left: Buttons with labels ---
-        left_frame = Frame(self.root, bg="#f0f0f0")
-        left_frame.place(x=20, y=120)
-        self.mode_btn = Button(left_frame, text="Mode: Letters", font=("Arial", 12), width=14, command=self.toggle_mode)
-        self.mode_btn.pack(pady=10)
-        Label(left_frame, text="Change Exercise", font=("Arial", 10), bg="#f0f0f0").pack()
-        self.lang_btn = Button(left_frame, text="Lang: EN", font=("Arial", 12), width=14, command=self.toggle_language)
-        self.lang_btn.pack(pady=10)
-        Label(left_frame, text="Change Language", font=("Arial", 10), bg="#f0f0f0").pack()
-        self.hl_btn = Button(left_frame, text="Highlight: ON", font=("Arial", 12), width=14, command=self.toggle_highlight)
-        self.hl_btn.pack(pady=10)
-        Label(left_frame, text="Toggle Highlight", font=("Arial", 10), bg="#f0f0f0").pack()
-
-        # --- Bottom: Virtual Keyboard ---
-        kb_frame = Frame(self.root, bg="#f0f0f0")
-        kb_frame.pack(side=BOTTOM, pady=20)
+    def setup_bottom_frame(self):
+        # Keyboard frame with pack
+        self.kb_frame = Frame(self.bottom_frame, bg="#f0f0f0")
+        self.kb_frame.pack(expand=True)
         self.kb_keys = []
-        self.kb_frame = kb_frame
         self.draw_keyboard()
 
     def load_lines_from_file(self, filename, fallback):
@@ -233,6 +294,71 @@ class MainActivity:
                 list("ячсмитьбю"),
                 [" "]
             ]
+
+    def center_window(self):
+        # Get screen dimensions
+        screen_width = self.root.winfo_screenwidth()
+        screen_height = self.root.winfo_screenheight()
+        
+        # Calculate position coordinates
+        x = (screen_width - self.MIN_WIDTH) // 2
+        y = (screen_height - self.MIN_HEIGHT) // 2
+        
+        # Set window position
+        self.root.geometry(f"+{x}+{y}")
+
+    def on_window_resize(self, event=None):
+        # Only handle window resize events and enforce size limits
+        if event and event.widget != self.root:
+            return
+
+        # Get window dimensions
+        window_width = self.root.winfo_width()
+        window_height = self.root.winfo_height()
+
+        # Enforce size limits
+        if window_width < self.MIN_WIDTH:
+            self.root.geometry(f"{self.MIN_WIDTH}x{window_height}")
+            window_width = self.MIN_WIDTH
+        elif window_width > self.MAX_WIDTH:
+            self.root.geometry(f"{self.MAX_WIDTH}x{window_height}")
+            window_width = self.MAX_WIDTH
+
+        if window_height < self.MIN_HEIGHT:
+            self.root.geometry(f"{window_width}x{self.MIN_HEIGHT}")
+            window_height = self.MIN_HEIGHT
+        elif window_height > self.MAX_HEIGHT:
+            self.root.geometry(f"{window_width}x{self.MAX_HEIGHT}")
+            window_height = self.MAX_HEIGHT
+
+        # Scale fonts based on window size
+        base_size = min(window_width // 80, window_height // 40)
+        text_size = max(12, min(16, base_size))  # Cap maximum text size
+        button_size = max(10, min(14, base_size - 2))  # Cap maximum button size
+        
+        # Update font sizes
+        self.stats_label.config(font=("Arial", text_size))
+        self.timer_label.config(font=("Arial", text_size, "bold"))
+        self.text_display.config(font=("Arial", text_size))
+        self.input_entry.config(font=("Arial", text_size))
+        
+        # Update button fonts
+        for btn in [self.mode_btn, self.lang_btn, self.hl_btn]:
+            btn.config(font=("Arial", button_size))
+            
+        # Scale keyboard
+        kb_key_size = max(8, min(12, base_size - 4))  # Cap maximum keyboard key size
+        for key in self.kb_keys:
+            key.config(font=("Arial", kb_key_size))
+            
+        # Update the underline
+        self.underline.delete("underline")
+        self.underline.create_line(0, 0, window_width, 0, 
+                                 fill="black", width=2, tags="underline")
+
+        # Adjust text display height based on window height
+        text_height = max(2, min(4, window_height // 200))  # Cap maximum height
+        self.text_display.config(height=text_height)
 
     def run(self):
         self.root.mainloop()
