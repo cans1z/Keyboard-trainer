@@ -114,23 +114,20 @@ class MainActivity:
                   font=("Arial", 10), bg="#f0f0f0").pack(pady=(0, 10))
 
     def setup_center_frame(self):
-        # Text display and input with pack
-        self.text_display = Text(self.center_frame, height=2, wrap=WORD,
-                               font=("Arial", 20, "bold"), bg="#f0f0f0",
-                               borderwidth=0, highlightthickness=0)
-        self.text_display.pack(fill=X, expand=True, padx=20)
-        self.text_display.config(state=DISABLED)
+        # Display label (dimmed, non-interactive)
+        self.display_label = Label(self.center_frame, text="", anchor="w",
+                                  font=("Arial", 20, "bold"), fg="#808080", bg="#f0f0f0")
+        self.display_label.pack(fill=X, expand=True, padx=20, pady=0)
 
-        input_frame = Frame(self.center_frame, bg="#f0f0f0")
-        input_frame.pack(fill=X, expand=True, padx=20)
-
-        self.input_entry = ttk.Entry(input_frame, style="NoBorder.TEntry",
-                                   font=("Arial", 20, "bold"))
-        self.input_entry.pack(fill=X, expand=True)
-        self.input_entry.bind('<Key>', self.on_key_press)
+        # Input entry (user types here)
+        self.input_entry = ttk.Entry(self.center_frame, style="NoBorder.TEntry",
+                                   font=("Arial", 20, "bold"), foreground="#222222")
+        self.input_entry.pack(fill=X, expand=True, padx=20, pady=0)
+        self.input_entry.bind('<KeyRelease>', self.on_input_change)
+        self.input_entry.bind('<FocusIn>', lambda e: self.input_entry.selection_range(END, END))
 
         # Underline
-        self.underline = Canvas(input_frame, height=2, bg="#f0f0f0",
+        self.underline = Canvas(self.center_frame, height=2, bg="#f0f0f0",
                               highlightthickness=0)
         self.underline.pack(fill=X)
         self.underline.create_line(0, 0, 1000, 0, fill="black", width=2,
@@ -159,7 +156,6 @@ class MainActivity:
 
     def set_exercise(self):
         if self.mode == 'letters':
-            # Generate a sequence of 20 random letters with spaces between them
             letters = EN_LETTERS if self.language == 'EN' else RU_LETTERS
             random_letters = [random.choice(letters) for _ in range(20)]
             self.current_text = ' '.join(random_letters)
@@ -175,15 +171,10 @@ class MainActivity:
             else:
                 texts = self.load_lines_from_file('ru_texts.txt', RU_TEXTS)
             self.current_text = random.choice(texts)
-        
-        self.text_display.config(state=NORMAL)
-        self.text_display.delete('1.0', END)
-        self.text_display.insert(END, self.current_text)
-        self.text_display.config(state=DISABLED)
+        self.update_display_label("")
         self.input_entry.config(state=NORMAL)
         self.input_entry.delete(0, END)
         self.input_entry.focus_set()
-        
         self.mistakes = 0
         self.total_chars = 0
         self.is_running = False
@@ -192,6 +183,31 @@ class MainActivity:
         self.update_stats()
         self.update_timer_label()
         self.draw_keyboard()
+
+    def update_display_label(self, user_input):
+        # Show the current_text, but erase chars that have been typed correctly
+        display_chars = list(self.current_text)
+        for i, c in enumerate(user_input):
+            if i < len(display_chars) and c == display_chars[i]:
+                display_chars[i] = " "  # Erase correct char
+        display_str = "".join(display_chars)
+        self.display_label.config(text=display_str)
+
+    def on_input_change(self, event=None):
+        user_input = self.input_entry.get()
+        self.update_display_label(user_input)
+        compare_len = min(len(user_input), len(self.current_text))
+        self.mistakes = 0
+        for i in range(compare_len):
+            if user_input[i] != self.current_text[i]:
+                self.mistakes += 1
+        self.total_chars = len(user_input)
+        self.update_stats()
+        self.highlight_keys(user_input)
+        if user_input == self.current_text:
+            self.is_running = False
+            self.input_entry.config(state=DISABLED)
+            self.next_btn.pack(pady=10)
 
     def update_timer_label(self):
         minutes = self.time_left // 60
@@ -344,7 +360,7 @@ class MainActivity:
         # Update font sizes
         self.stats_label.config(font=("Arial", text_size))
         self.timer_label.config(font=("Arial", text_size, "bold"))
-        self.text_display.config(font=("Arial", text_size, "bold"))
+        self.display_label.config(font=("Arial", text_size, "bold"))
         self.input_entry.config(font=("Arial", text_size, "bold"))
         
         # Update button fonts
@@ -363,7 +379,7 @@ class MainActivity:
 
         # Adjust text display height based on window height
         text_height = max(2, min(4, window_height // 200))
-        self.text_display.config(height=text_height)
+        self.display_label.config(height=text_height)
 
     def run(self):
         self.root.mainloop()
