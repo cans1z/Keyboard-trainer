@@ -61,7 +61,7 @@ class MainActivity:
                        borderwidth=0,
                        relief="flat",
                        padding=5,
-                       font=("Arial", 16))
+                       font=("Arial", 20, "bold"))
 
     def init_gui(self):
         # Create main frames with grid
@@ -116,7 +116,7 @@ class MainActivity:
     def setup_center_frame(self):
         # Text display and input with pack
         self.text_display = Text(self.center_frame, height=2, wrap=WORD,
-                               font=("Arial", 16), bg="#f0f0f0",
+                               font=("Arial", 20, "bold"), bg="#f0f0f0",
                                borderwidth=0, highlightthickness=0)
         self.text_display.pack(fill=X, expand=True, padx=20)
         self.text_display.config(state=DISABLED)
@@ -125,7 +125,7 @@ class MainActivity:
         input_frame.pack(fill=X, expand=True, padx=20)
 
         self.input_entry = ttk.Entry(input_frame, style="NoBorder.TEntry",
-                                   font=("Arial", 16))
+                                   font=("Arial", 20, "bold"))
         self.input_entry.pack(fill=X, expand=True)
         self.input_entry.bind('<Key>', self.on_key_press)
 
@@ -159,7 +159,10 @@ class MainActivity:
 
     def set_exercise(self):
         if self.mode == 'letters':
-            self.current_text = random.choice(EN_LETTERS if self.language == 'EN' else RU_LETTERS)
+            # Generate a sequence of 20 random letters with spaces between them
+            letters = EN_LETTERS if self.language == 'EN' else RU_LETTERS
+            random_letters = [random.choice(letters) for _ in range(20)]
+            self.current_text = ' '.join(random_letters)
         elif self.mode == 'phrases':
             if self.language == 'EN':
                 phrases = self.load_lines_from_file('en_phrases.txt', EN_PHRASES)
@@ -172,6 +175,7 @@ class MainActivity:
             else:
                 texts = self.load_lines_from_file('ru_texts.txt', RU_TEXTS)
             self.current_text = random.choice(texts)
+        
         self.text_display.config(state=NORMAL)
         self.text_display.delete('1.0', END)
         self.text_display.insert(END, self.current_text)
@@ -179,6 +183,7 @@ class MainActivity:
         self.input_entry.config(state=NORMAL)
         self.input_entry.delete(0, END)
         self.input_entry.focus_set()
+        
         self.mistakes = 0
         self.total_chars = 0
         self.is_running = False
@@ -332,22 +337,22 @@ class MainActivity:
             window_height = self.MAX_HEIGHT
 
         # Scale fonts based on window size
-        base_size = min(window_width // 80, window_height // 40)
-        text_size = max(12, min(16, base_size))  # Cap maximum text size
-        button_size = max(10, min(14, base_size - 2))  # Cap maximum button size
+        base_size = min(window_width // 60, window_height // 30)
+        text_size = max(16, min(24, base_size))
+        button_size = max(12, min(18, base_size - 2))
         
         # Update font sizes
         self.stats_label.config(font=("Arial", text_size))
         self.timer_label.config(font=("Arial", text_size, "bold"))
-        self.text_display.config(font=("Arial", text_size))
-        self.input_entry.config(font=("Arial", text_size))
+        self.text_display.config(font=("Arial", text_size, "bold"))
+        self.input_entry.config(font=("Arial", text_size, "bold"))
         
         # Update button fonts
         for btn in [self.mode_btn, self.lang_btn, self.hl_btn]:
             btn.config(font=("Arial", button_size))
             
         # Scale keyboard
-        kb_key_size = max(8, min(12, base_size - 4))  # Cap maximum keyboard key size
+        kb_key_size = max(10, min(16, base_size - 4))
         for key in self.kb_keys:
             key.config(font=("Arial", kb_key_size))
             
@@ -357,7 +362,7 @@ class MainActivity:
                                  fill="black", width=2, tags="underline")
 
         # Adjust text display height based on window height
-        text_height = max(2, min(4, window_height // 200))  # Cap maximum height
+        text_height = max(2, min(4, window_height // 200))
         self.text_display.config(height=text_height)
 
     def run(self):
