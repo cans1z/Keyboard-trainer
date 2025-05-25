@@ -51,11 +51,13 @@ class MainActivity:
         self.language = 'EN'
         self.mode = 'letters'
         self.highlight = True
-        self.time_left = 60
+        self.time_left = 30
         self.mistakes = 0
         self.total_chars = 0
         self.is_running = False
         self.current_text = ''
+        self.error_count = 0  # Total number of errors made
+        self.last_checked_position = 0  # Last position we checked for errors
 
         self.init_styles()
         self.init_gui()
@@ -140,14 +142,8 @@ class MainActivity:
                              insertbackground="#000000", height=1)
         self.input_text.pack(fill=X, expand=True)
         self.input_text.bind('<KeyRelease>', self.on_input_change)
+        self.input_text.bind('<KeyPress>', self.on_key_press)
         self.input_text.bind('<FocusIn>', lambda e: self.input_text.mark_set("insert", "end"))
-
-        # Underline
-        self.underline = Canvas(self.center_frame, height=2, bg="#f0f0f0",
-                              highlightthickness=0)
-        self.underline.pack(fill=X)
-        self.underline.create_line(0, 0, 1000, 0, fill="black", width=2,
-                                 tags="underline")
 
         # Next button
         self.next_btn = Button(self.center_frame, text="Next Exercise",
@@ -192,7 +188,9 @@ class MainActivity:
         self.input_text.delete("1.0", "end")
         self.input_text.focus_set()
         self.mistakes = 0
+        self.error_count = 0
         self.total_chars = 0
+        self.last_checked_position = 0
         self.is_running = False
         self.time_left = 30
         self.next_btn.pack_forget()
@@ -226,10 +224,14 @@ class MainActivity:
             self.time_left = 30
             self.root.after(1000, self.update_timer)
         
-        # Only check for new mistakes in the newly typed character
-        if len(user_input) > self.total_chars:
-            if user_input[-1] != self.current_text[len(user_input)-1]:
-                self.mistakes += 1
+        # Check for new mistakes only when typing forward
+        if len(user_input) > self.last_checked_position:
+            # Check all new characters
+            for i in range(self.last_checked_position, len(user_input)):
+                if user_input[i] != self.current_text[i]:
+                    self.error_count += 1
+            self.last_checked_position = len(user_input)
+            self.mistakes = self.error_count
         
         self.total_chars = len(user_input)
         self.update_stats()
@@ -251,14 +253,9 @@ class MainActivity:
         if not self.is_running:
             self.start_time = time.time()
             self.is_running = True
-            self.time_left = 60
+            self.time_left = 30
             self.root.after(1000, self.update_timer)
         input_text = self.input_text.get("1.0", "end-1c")
-        compare_len = min(len(input_text), len(self.current_text))
-        self.mistakes = 0
-        for i in range(compare_len):
-            if input_text[i] != self.current_text[i]:
-                self.mistakes += 1
         self.total_chars = len(input_text)
         self.update_stats()
         self.highlight_keys(input_text)
@@ -281,9 +278,15 @@ class MainActivity:
             self.update_timer_label()
 
     def update_stats(self, final=False):
-        elapsed = 60 - self.time_left if self.is_running or final else 1
-        wpm = (self.total_chars / 5) / (elapsed / 60) if elapsed > 0 else 0
-        self.stats_label.config(text=f"Errors: {self.mistakes} | Speed: {wpm:.1f} WPM")
+        elapsed = 30 - self.time_left if self.is_running or final else 1
+        if self.mode == 'letters':
+            # Calculate characters per minute for letter mode
+            cpm = (self.total_chars / (elapsed / 60)) if elapsed > 0 else 0
+            self.stats_label.config(text=f"Errors: {self.mistakes} | Speed: {cpm:.1f} CPM")
+        else:
+            # Calculate words per minute for phrases and texts
+            wpm = (self.total_chars / 5) / (elapsed / 60) if elapsed > 0 else 0
+            self.stats_label.config(text=f"Errors: {self.mistakes} | Speed: {wpm:.1f} WPM")
 
     def highlight_keys(self, input_text):
         if not self.highlight:
@@ -425,11 +428,6 @@ class MainActivity:
         kb_key_size = max(10, min(16, base_size - 4))
         for key in self.kb_keys:
             key.config(font=("Arial", kb_key_size))
-            
-        # Update the underline
-        self.underline.delete("underline")
-        self.underline.create_line(0, 0, window_width, 0, 
-                                 fill="black", width=2, tags="underline")
 
         # Adjust text display height based on window height
         text_height = max(2, min(4, window_height // 200))
