@@ -24,13 +24,16 @@ class MainActivity:
         self.MAX_WIDTH = 1600
         self.MAX_HEIGHT = 900
         
-        # Keyboard layout mapping
-        self.ru_to_en = {
-            'й': 'q', 'ц': 'w', 'у': 'e', 'к': 'r', 'е': 't', 'н': 'y', 'г': 'u', 'ш': 'i', 'щ': 'o', 'з': 'p', 'х': '[', 'ъ': ']',
-            'ф': 'a', 'ы': 's', 'в': 'd', 'а': 'f', 'п': 'g', 'р': 'h', 'о': 'j', 'л': 'k', 'д': 'l', 'ж': ';', 'э': "'",
-            'я': 'z', 'ч': 'x', 'с': 'c', 'м': 'v', 'и': 'b', 'т': 'n', 'ь': 'm', 'б': ',', 'ю': '.'
+        # Keyboard layout mapping based on physical position
+        self.keyboard_positions = {
+            # First row
+            'q': 'й', 'w': 'ц', 'e': 'у', 'r': 'к', 't': 'е', 'y': 'н', 'u': 'г', 'i': 'ш', 'o': 'щ', 'p': 'з', '[': 'х', ']': 'ъ',
+            # Second row
+            'a': 'ф', 's': 'ы', 'd': 'в', 'f': 'а', 'g': 'п', 'h': 'р', 'j': 'о', 'k': 'л', 'l': 'д', ';': 'ж', "'": 'э',
+            # Third row
+            'z': 'я', 'x': 'ч', 'c': 'с', 'v': 'м', 'b': 'и', 'n': 'т', 'm': 'ь', ',': 'б', '.': 'ю'
         }
-        self.en_to_ru = {v: k for k, v in self.ru_to_en.items()}
+        self.ru_positions = {v: k for k, v in self.keyboard_positions.items()}
         
         # Set initial size and position window in center of screen
         self.root.geometry(f"{self.MIN_WIDTH}x{self.MIN_HEIGHT}")
@@ -191,7 +194,7 @@ class MainActivity:
         self.mistakes = 0
         self.total_chars = 0
         self.is_running = False
-        self.time_left = 60
+        self.time_left = 30
         self.next_btn.pack_forget()
         self.update_stats()
         self.update_timer_label()
@@ -216,6 +219,13 @@ class MainActivity:
         user_input = self.input_text.get("1.0", "end-1c")
         self.update_display_label(user_input)
         
+        # Start timer on first input if not running
+        if not self.is_running and user_input:
+            self.is_running = True
+            self.start_time = time.time()
+            self.time_left = 30
+            self.root.after(1000, self.update_timer)
+        
         # Only check for new mistakes in the newly typed character
         if len(user_input) > self.total_chars:
             if user_input[-1] != self.current_text[len(user_input)-1]:
@@ -224,10 +234,13 @@ class MainActivity:
         self.total_chars = len(user_input)
         self.update_stats()
         self.highlight_keys(user_input)
+        
+        # Stop timer and disable input when text is completed
         if user_input == self.current_text:
             self.is_running = False
             self.input_text.config(state=DISABLED)
             self.next_btn.pack(pady=10)
+            self.update_stats(final=True)
 
     def update_timer_label(self):
         minutes = self.time_left // 60
@@ -285,19 +298,30 @@ class MainActivity:
 
         if input_text:
             last_char = input_text[-1]
-            # Get the corresponding character in the display language
+            # Get the expected character from the current text
+            expected_char = self.current_text[len(input_text)-1] if len(input_text) <= len(self.current_text) else last_char
+            
+            # Get the physical key position
+            physical_key = None
             if self.language == 'EN':
-                display_char = self.en_to_ru.get(last_char.lower(), last_char.lower())
+                # If we're typing in English but text is in Russian
+                if last_char in self.ru_positions:
+                    physical_key = self.ru_positions[last_char]
+                else:
+                    physical_key = last_char
             else:
-                display_char = self.ru_to_en.get(last_char.lower(), last_char.lower())
+                # If we're typing in Russian but text is in English
+                if last_char in self.keyboard_positions:
+                    physical_key = self.keyboard_positions[last_char]
+                else:
+                    physical_key = last_char
 
             # Check if the typed character matches the expected character
-            correct = len(input_text) <= len(self.current_text) and \
-                     last_char.lower() == self.current_text[len(input_text)-1].lower()
+            correct = last_char == expected_char
 
-            # Highlight the key
+            # Highlight the key at the physical position
             for btn, key in zip(self.kb_keys, layout):
-                if key == last_char.lower():
+                if key == physical_key:
                     btn.config(bg="#90ee90" if correct else "#ff6961")
 
     def toggle_mode(self):
