@@ -114,17 +114,22 @@ class MainActivity:
                   font=("Arial", 10), bg="#f0f0f0").pack(pady=(0, 10))
 
     def setup_center_frame(self):
-        # Display label (dimmed, non-interactive)
-        self.display_label = Label(self.center_frame, text="", anchor="w",
-                                  font=("Arial", 20, "bold"), fg="#808080", bg="#f0f0f0")
-        self.display_label.pack(fill=X, expand=True, padx=20, pady=0)
+        # Create a frame to hold the text display
+        text_frame = Frame(self.center_frame, bg="#f0f0f0")
+        text_frame.pack(fill=X, expand=True, padx=20, pady=0)
 
-        # Input entry (user types here)
-        self.input_entry = ttk.Entry(self.center_frame, style="NoBorder.TEntry",
-                                   font=("Arial", 20, "bold"), foreground="#222222")
-        self.input_entry.pack(fill=X, expand=True, padx=20, pady=0)
-        self.input_entry.bind('<KeyRelease>', self.on_input_change)
-        self.input_entry.bind('<FocusIn>', lambda e: self.input_entry.selection_range(END, END))
+        # Create display label (dimmed text)
+        self.display_label = Label(text_frame, text="", anchor="w",
+                                  font=("Arial", 20, "bold"), fg="#aaaaaa", bg="#f0f0f0")
+        self.display_label.pack(fill=X, expand=True)
+
+        # Create input text widget (user types here)
+        self.input_text = Text(text_frame, font=("Arial", 20, "bold"),
+                             fg="#000000", bg="#f0f0f0", borderwidth=0, highlightthickness=0,
+                             insertbackground="#000000", height=1)
+        self.input_text.pack(fill=X, expand=True)
+        self.input_text.bind('<KeyRelease>', self.on_input_change)
+        self.input_text.bind('<FocusIn>', lambda e: self.input_text.mark_set("insert", "end"))
 
         # Underline
         self.underline = Canvas(self.center_frame, height=2, bg="#f0f0f0",
@@ -172,9 +177,9 @@ class MainActivity:
                 texts = self.load_lines_from_file('ru_texts.txt', RU_TEXTS)
             self.current_text = random.choice(texts)
         self.update_display_label("")
-        self.input_entry.config(state=NORMAL)
-        self.input_entry.delete(0, END)
-        self.input_entry.focus_set()
+        self.input_text.config(state=NORMAL)
+        self.input_text.delete("1.0", "end")
+        self.input_text.focus_set()
         self.mistakes = 0
         self.total_chars = 0
         self.is_running = False
@@ -192,9 +197,15 @@ class MainActivity:
                 display_chars[i] = " "  # Erase correct char
         display_str = "".join(display_chars)
         self.display_label.config(text=display_str)
+        
+        # Update input field to match display text length
+        current_input = self.input_text.get("1.0", "end-1c")
+        if len(current_input) > len(self.current_text):
+            self.input_text.delete("1.0", "end")
+            self.input_text.insert("1.0", current_input[:len(self.current_text)])
 
     def on_input_change(self, event=None):
-        user_input = self.input_entry.get()
+        user_input = self.input_text.get("1.0", "end-1c")
         self.update_display_label(user_input)
         compare_len = min(len(user_input), len(self.current_text))
         self.mistakes = 0
@@ -206,7 +217,7 @@ class MainActivity:
         self.highlight_keys(user_input)
         if user_input == self.current_text:
             self.is_running = False
-            self.input_entry.config(state=DISABLED)
+            self.input_text.config(state=DISABLED)
             self.next_btn.pack(pady=10)
 
     def update_timer_label(self):
@@ -220,7 +231,7 @@ class MainActivity:
             self.is_running = True
             self.time_left = 60
             self.root.after(1000, self.update_timer)
-        input_text = self.input_entry.get()
+        input_text = self.input_text.get("1.0", "end-1c")
         compare_len = min(len(input_text), len(self.current_text))
         self.mistakes = 0
         for i in range(compare_len):
@@ -231,7 +242,7 @@ class MainActivity:
         self.highlight_keys(input_text)
         if input_text == self.current_text:
             self.is_running = False
-            self.input_entry.config(state=DISABLED)
+            self.input_text.config(state=DISABLED)
             self.next_btn.pack(pady=10)
 
     def update_timer(self):
@@ -242,7 +253,7 @@ class MainActivity:
             self.root.after(1000, self.update_timer)
         elif self.time_left == 0:
             self.is_running = False
-            self.input_entry.config(state=DISABLED)
+            self.input_text.config(state=DISABLED)
             self.next_btn.pack(pady=10)
             self.update_stats(final=True)
             self.update_timer_label()
@@ -361,7 +372,6 @@ class MainActivity:
         self.stats_label.config(font=("Arial", text_size))
         self.timer_label.config(font=("Arial", text_size, "bold"))
         self.display_label.config(font=("Arial", text_size, "bold"))
-        self.input_entry.config(font=("Arial", text_size, "bold"))
         
         # Update button fonts
         for btn in [self.mode_btn, self.lang_btn, self.hl_btn]:
