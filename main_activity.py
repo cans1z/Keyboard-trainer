@@ -24,6 +24,14 @@ class MainActivity:
         self.MAX_WIDTH = 1600
         self.MAX_HEIGHT = 900
         
+        # Keyboard layout mapping
+        self.ru_to_en = {
+            'й': 'q', 'ц': 'w', 'у': 'e', 'к': 'r', 'е': 't', 'н': 'y', 'г': 'u', 'ш': 'i', 'щ': 'o', 'з': 'p', 'х': '[', 'ъ': ']',
+            'ф': 'a', 'ы': 's', 'в': 'd', 'а': 'f', 'п': 'g', 'р': 'h', 'о': 'j', 'л': 'k', 'д': 'l', 'ж': ';', 'э': "'",
+            'я': 'z', 'ч': 'x', 'с': 'c', 'м': 'v', 'и': 'b', 'т': 'n', 'ь': 'm', 'б': ',', 'ю': '.'
+        }
+        self.en_to_ru = {v: k for k, v in self.ru_to_en.items()}
+        
         # Set initial size and position window in center of screen
         self.root.geometry(f"{self.MIN_WIDTH}x{self.MIN_HEIGHT}")
         self.center_window()
@@ -207,11 +215,12 @@ class MainActivity:
     def on_input_change(self, event=None):
         user_input = self.input_text.get("1.0", "end-1c")
         self.update_display_label(user_input)
-        compare_len = min(len(user_input), len(self.current_text))
-        self.mistakes = 0
-        for i in range(compare_len):
-            if user_input[i] != self.current_text[i]:
+        
+        # Only check for new mistakes in the newly typed character
+        if len(user_input) > self.total_chars:
+            if user_input[-1] != self.current_text[len(user_input)-1]:
                 self.mistakes += 1
+        
         self.total_chars = len(user_input)
         self.update_stats()
         self.highlight_keys(user_input)
@@ -268,14 +277,25 @@ class MainActivity:
             for btn in self.kb_keys:
                 btn.config(bg="white")
             return
+
         layout = sum(self.get_keyboard_layout(), [])
-        # Highlight last typed key
-        for btn, key in zip(self.kb_keys, layout):
+        # Reset all keys to white
+        for btn in self.kb_keys:
             btn.config(bg="white")
+
         if input_text:
             last_char = input_text[-1]
+            # Get the corresponding character in the display language
+            if self.language == 'EN':
+                display_char = self.en_to_ru.get(last_char.lower(), last_char.lower())
+            else:
+                display_char = self.ru_to_en.get(last_char.lower(), last_char.lower())
+
+            # Check if the typed character matches the expected character
             correct = len(input_text) <= len(self.current_text) and \
-                      last_char == self.current_text[len(input_text)-1]
+                     last_char.lower() == self.current_text[len(input_text)-1].lower()
+
+            # Highlight the key
             for btn, key in zip(self.kb_keys, layout):
                 if key == last_char.lower():
                     btn.config(bg="#90ee90" if correct else "#ff6961")
