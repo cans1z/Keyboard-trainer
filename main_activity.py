@@ -8,8 +8,8 @@ EN_LETTERS = list("abcdefghijklmnopqrstuvwxyz")
 RU_LETTERS = list("йцукенгшщзхъфывапролджэячсмитьбю")
 
 # --- Placeholder for loading phrases/texts from files ---
-EN_PHRASES = ["hello world", "type fast"]
-RU_PHRASES = ["привет мир", "быстро печатай"]
+EN_WORDS = ["hello", "world", "computer", "keyboard", "program", "python", "code", "developer", "software", "typing", "practice", "speed", "accuracy", "learning", "training", "skill", "master", "keyboard", "layout", "efficiency"]
+RU_WORDS = ["привет", "мир", "компьютер", "клавиатура", "программа", "питон", "код", "разработчик", "программное", "обеспечение", "печатать", "практика", "скорость", "точность", "обучение", "тренировка", "навык", "мастер", "раскладка", "эффективность"]
 EN_TEXTS = ["The quick brown fox jumps over the lazy dog."]
 RU_TEXTS = ["Съешь ещё этих мягких французских булок, да выпей чаю."]
 
@@ -17,6 +17,40 @@ class MainActivity:
     def __init__(self):
         self.root = Tk()
         self.root.title("Keyboard Trainer")
+        
+        # Interface translations
+        self.translations = {
+            'EN': {
+                'title': 'Keyboard Trainer',
+                'errors': 'Errors',
+                'speed': 'Speed',
+                'mode_letters': 'Mode: Letters',
+                'mode_words': 'Mode: Words',
+                'mode_texts': 'Mode: Texts',
+                'lang_en': 'Lang: EN',
+                'lang_ru': 'Lang: RU',
+                'highlight_on': 'Highlight: ON',
+                'highlight_off': 'Highlight: OFF',
+                'change_exercise': 'Change Exercise',
+                'change_language': 'Change Language',
+                'toggle_highlight': 'Toggle Highlight'
+            },
+            'RU': {
+                'title': 'Тренажер Клавиатуры',
+                'errors': 'Ошибки',
+                'speed': 'Скорость',
+                'mode_letters': 'Режим: Буквы',
+                'mode_words': 'Режим: Слова',
+                'mode_texts': 'Режим: Тексты',
+                'lang_en': 'Язык: EN',
+                'lang_ru': 'Язык: RU',
+                'highlight_on': 'Подсветка: ВКЛ',
+                'highlight_off': 'Подсветка: ВЫКЛ',
+                'change_exercise': 'Сменить Упражнение',
+                'change_language': 'Сменить Язык',
+                'toggle_highlight': 'Включить Подсветку'
+            }
+        }
         
         # Set minimum and maximum window sizes
         self.MIN_WIDTH = 800
@@ -56,8 +90,8 @@ class MainActivity:
         self.total_chars = 0
         self.is_running = False
         self.current_text = ''
-        self.error_count = 0  # Total number of errors made
-        self.last_checked_position = 0  # Last position we checked for errors
+        self.error_count = 0
+        self.last_checked_position = 0
 
         self.init_styles()
         self.init_gui()
@@ -143,13 +177,8 @@ class MainActivity:
         self.input_text.pack(fill=X, expand=True)
         self.input_text.bind('<KeyRelease>', self.on_input_change)
         self.input_text.bind('<KeyPress>', self.on_key_press)
+        self.input_text.bind('<Return>', self.handle_enter)
         self.input_text.bind('<FocusIn>', lambda e: self.input_text.mark_set("insert", "end"))
-
-        # Next button
-        self.next_btn = Button(self.center_frame, text="Next Exercise",
-                              font=("Arial", 12), command=self.set_exercise)
-        self.next_btn.pack(pady=10)
-        self.next_btn.pack_forget()
 
     def setup_bottom_frame(self):
         # Keyboard frame with pack
@@ -171,12 +200,12 @@ class MainActivity:
             letters = EN_LETTERS if self.language == 'EN' else RU_LETTERS
             random_letters = [random.choice(letters) for _ in range(20)]
             self.current_text = ' '.join(random_letters)
-        elif self.mode == 'phrases':
-            if self.language == 'EN':
-                phrases = self.load_lines_from_file('en_phrases.txt', EN_PHRASES)
-            else:
-                phrases = self.load_lines_from_file('ru_phrases.txt', RU_PHRASES)
-            self.current_text = random.choice(phrases)
+        elif self.mode == 'words':
+            words = EN_WORDS if self.language == 'EN' else RU_WORDS
+            # Select random number of words between 10 and 15
+            num_words = random.randint(10, 15)
+            selected_words = random.sample(words, num_words)
+            self.current_text = ' '.join(selected_words)
         else:
             if self.language == 'EN':
                 texts = self.load_lines_from_file('en_texts.txt', EN_TEXTS)
@@ -193,7 +222,6 @@ class MainActivity:
         self.last_checked_position = 0
         self.is_running = False
         self.time_left = 30
-        self.next_btn.pack_forget()
         self.update_stats()
         self.update_timer_label()
         self.draw_keyboard()
@@ -213,6 +241,12 @@ class MainActivity:
             self.input_text.delete("1.0", "end")
             self.input_text.insert("1.0", current_input[:len(self.current_text)])
 
+    def handle_enter(self, event):
+        # Prevent default Enter behavior
+        if not self.is_running:
+            self.set_exercise()
+        return "break"  # This prevents the Enter from being added to the text
+
     def on_input_change(self, event=None):
         user_input = self.input_text.get("1.0", "end-1c")
         self.update_display_label(user_input)
@@ -228,12 +262,13 @@ class MainActivity:
         if len(user_input) > self.last_checked_position:
             # Check all new characters
             for i in range(self.last_checked_position, len(user_input)):
-                if user_input[i] != self.current_text[i]:
+                if user_input[i] != self.current_text[i] and user_input[i] != '\n':  # Ignore Enter key
                     self.error_count += 1
             self.last_checked_position = len(user_input)
             self.mistakes = self.error_count
         
-        self.total_chars = len(user_input)
+        # Count total characters excluding Enter
+        self.total_chars = len(user_input.replace('\n', ''))
         self.update_stats()
         self.highlight_keys(user_input)
         
@@ -241,8 +276,6 @@ class MainActivity:
         if user_input == self.current_text:
             self.is_running = False
             self.input_text.config(state=DISABLED)
-            self.next_btn.pack(pady=10)
-            self.update_stats(final=True)
 
     def update_timer_label(self):
         minutes = self.time_left // 60
@@ -262,7 +295,6 @@ class MainActivity:
         if input_text == self.current_text:
             self.is_running = False
             self.input_text.config(state=DISABLED)
-            self.next_btn.pack(pady=10)
 
     def update_timer(self):
         if self.is_running and self.time_left > 0:
@@ -273,20 +305,20 @@ class MainActivity:
         elif self.time_left == 0:
             self.is_running = False
             self.input_text.config(state=DISABLED)
-            self.next_btn.pack(pady=10)
-            self.update_stats(final=True)
             self.update_timer_label()
+            # Add a small delay before starting new exercise
+            self.root.after(500, self.set_exercise)
 
     def update_stats(self, final=False):
         elapsed = 30 - self.time_left if self.is_running or final else 1
         if self.mode == 'letters':
             # Calculate characters per minute for letter mode
             cpm = (self.total_chars / (elapsed / 60)) if elapsed > 0 else 0
-            self.stats_label.config(text=f"Errors: {self.mistakes} | Speed: {cpm:.1f} CPM")
+            self.stats_label.config(text=f"{self.translations[self.language]['errors']}: {self.mistakes} | {self.translations[self.language]['speed']}: {cpm:.1f} CPM")
         else:
             # Calculate words per minute for phrases and texts
             wpm = (self.total_chars / 5) / (elapsed / 60) if elapsed > 0 else 0
-            self.stats_label.config(text=f"Errors: {self.mistakes} | Speed: {wpm:.1f} WPM")
+            self.stats_label.config(text=f"{self.translations[self.language]['errors']}: {self.mistakes} | {self.translations[self.language]['speed']}: {wpm:.1f} WPM")
 
     def highlight_keys(self, input_text):
         if not self.highlight:
@@ -328,21 +360,20 @@ class MainActivity:
                     btn.config(bg="#90ee90" if correct else "#ff6961")
 
     def toggle_mode(self):
-        modes = ['letters', 'phrases', 'texts']
-        mode_names = {'letters': 'Letters', 'phrases': 'Phrases', 'texts': 'Texts'}
+        modes = ['letters', 'words', 'texts']
         idx = modes.index(self.mode)
         self.mode = modes[(idx + 1) % len(modes)]
-        self.mode_btn.config(text=f"Mode: {mode_names[self.mode]}")
+        self.update_interface_language()
         self.set_exercise()
 
     def toggle_language(self):
         self.language = 'RU' if self.language == 'EN' else 'EN'
-        self.lang_btn.config(text=f"Lang: {self.language}")
+        self.update_interface_language()
         self.set_exercise()
 
     def toggle_highlight(self):
         self.highlight = not self.highlight
-        self.hl_btn.config(text=f"Highlight: {'ON' if self.highlight else 'OFF'}")
+        self.update_interface_language()
         self.draw_keyboard()
 
     def draw_keyboard(self):
@@ -432,6 +463,25 @@ class MainActivity:
         # Adjust text display height based on window height
         text_height = max(2, min(4, window_height // 200))
         self.display_label.config(height=text_height)
+
+    def update_interface_language(self):
+        # Update window title
+        self.root.title(self.translations[self.language]['title'])
+        
+        # Update mode button text
+        mode_text = f"Mode: {self.translations[self.language][f'mode_{self.mode}'].split(': ')[1]}"
+        self.mode_btn.config(text=mode_text)
+        
+        # Update language button text
+        lang_text = f"Lang: {self.language}"
+        self.lang_btn.config(text=lang_text)
+        
+        # Update highlight button text
+        highlight_text = self.translations[self.language]['highlight_on' if self.highlight else 'highlight_off']
+        self.hl_btn.config(text=highlight_text)
+        
+        # Update stats label
+        self.update_stats()
 
     def run(self):
         self.root.mainloop()
