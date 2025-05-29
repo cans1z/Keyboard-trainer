@@ -33,7 +33,13 @@ class MainActivity:
                 'highlight_off': 'Highlight: OFF',
                 'change_exercise': 'Change Exercise',
                 'change_language': 'Change Language',
-                'toggle_highlight': 'Toggle Highlight'
+                'toggle_highlight': 'Toggle Highlight',
+                'description_change_exercise': 'Change Exercise',
+                'description_change_language': 'Change Language',
+                'description_toggle_highlight': 'Toggle Highlight',
+                'press_enter': 'Press Enter to continue',
+                'time_up': 'Time is up! You did not complete the exercise.',
+                'press_enter_new': 'Press Enter to start a new exercise'
             },
             'RU': {
                 'title': 'Тренажер Клавиатуры',
@@ -48,7 +54,13 @@ class MainActivity:
                 'highlight_off': 'Подсветка: ВЫКЛ',
                 'change_exercise': 'Сменить Упражнение',
                 'change_language': 'Сменить Язык',
-                'toggle_highlight': 'Включить Подсветку'
+                'toggle_highlight': 'Включить Подсветку',
+                'description_change_exercise': 'Сменить Упражнение',
+                'description_change_language': 'Сменить Язык',
+                'description_toggle_highlight': 'Включить Подсветку',
+                'press_enter': 'Нажмите Enter, чтобы продолжить',
+                'time_up': 'Время вышло! Вы не справились с упражнением.',
+                'press_enter_new': 'Нажмите Enter, чтобы начать новое упражнение'
             }
         }
         
@@ -92,6 +104,7 @@ class MainActivity:
         self.current_text = ''
         self.error_count = 0
         self.last_checked_position = 0
+        self.final_stats = None  # Store final statistics
 
         self.init_styles()
         self.init_gui()
@@ -129,36 +142,47 @@ class MainActivity:
         self.setup_bottom_frame()
 
     def setup_top_frame(self):
-        # Stats and Timer with pack
+        # Create a frame for timer
+        timer_frame = Frame(self.top_frame, bg="#f0f0f0")
+        timer_frame.pack(fill=X, pady=(0, 5))
+        
+        # Timer with pack
+        self.timer_label = Label(timer_frame, text="01:00", 
+                               font=("Arial", 14, "bold"), bg="#f0f0f0", fg="black")
+        self.timer_label.pack(expand=True)
+        
+        # Stats with pack
         self.stats_label = Label(self.top_frame, text="Errors: 0 | Speed: 0 WPM", 
                                font=("Arial", 14), bg="#f0f0f0")
-        self.timer_label = Label(self.top_frame, text="01:00", 
-                               font=("Arial", 14, "bold"), bg="#f0f0f0", fg="black")
-        
-        self.stats_label.pack(side=LEFT, padx=10, expand=True)
-        self.timer_label.pack(side=LEFT, padx=10)
+        self.stats_label.pack(fill=X, expand=True)
 
     def setup_left_frame(self):
         # Control buttons with pack
         button_configs = [
-            ("Mode: Letters", "Change Exercise", self.toggle_mode),
-            ("Lang: EN", "Change Language", self.toggle_language),
-            ("Highlight: ON", "Toggle Highlight", self.toggle_highlight)
+            ("Mode: Letters", "description_change_exercise", self.toggle_mode),
+            ("Lang: EN", "description_change_language", self.toggle_language),
+            ("Highlight: ON", "description_toggle_highlight", self.toggle_highlight)
         ]
 
-        for btn_text, label_text, command in button_configs:
+        self.description_labels = []  # Store references to description labels
+        for btn_text, label_key, command in button_configs:
+            # Create and pack the description label first
+            label = Label(self.left_frame, text=self.translations[self.language][label_key], 
+                         font=("Arial", 10), bg="#f0f0f0")
+            label.pack(pady=(10, 0))
+            self.description_labels.append(label)
+            
+            # Then create and pack the button
             btn = Button(self.left_frame, text=btn_text, font=("Arial", 12),
                         width=14, command=command)
-            btn.pack(pady=5)
+            btn.pack(pady=(0, 10))
+            
             if btn_text.startswith("Mode"):
                 self.mode_btn = btn
             elif btn_text.startswith("Lang"):
                 self.lang_btn = btn
             else:
                 self.hl_btn = btn
-            
-            Label(self.left_frame, text=label_text, 
-                  font=("Arial", 10), bg="#f0f0f0").pack(pady=(0, 10))
 
     def setup_center_frame(self):
         # Create a frame to hold the text display
@@ -244,10 +268,18 @@ class MainActivity:
     def handle_enter(self, event):
         # Prevent default Enter behavior
         if not self.is_running:
+            # Only reset stats if exercise was completed
+            if self.input_text.cget('state') == 'disabled':
+                self.final_stats = None
             self.set_exercise()
+            self.display_label.config(text=self.current_text)
         return "break"  # This prevents the Enter from being added to the text
 
     def on_input_change(self, event=None):
+        # If exercise is completed or time is up, ignore all input except Enter
+        if self.input_text.cget('state') == 'disabled':
+            return
+
         user_input = self.input_text.get("1.0", "end-1c")
         self.update_display_label(user_input)
         
@@ -269,13 +301,26 @@ class MainActivity:
         
         # Count total characters excluding Enter
         self.total_chars = len(user_input.replace('\n', ''))
-        self.update_stats()
-        self.highlight_keys(user_input)
+        
+        # Only update stats if exercise is not completed
+        if self.input_text.cget('state') != 'disabled':
+            self.update_stats()
+            self.highlight_keys(user_input)
         
         # Stop timer and disable input when text is completed
         if user_input == self.current_text:
             self.is_running = False
             self.input_text.config(state=DISABLED)
+            # Store final statistics
+            elapsed = 30 - self.time_left
+            if self.mode == 'letters':
+                cpm = (self.total_chars / (elapsed / 60)) if elapsed > 0 else 0
+                self.final_stats = f"{self.translations[self.language]['errors']}: {self.mistakes} | {self.translations[self.language]['speed']}: {cpm:.1f} CPM"
+            else:
+                wpm = (self.total_chars / 5) / (elapsed / 60) if elapsed > 0 else 0
+                self.final_stats = f"{self.translations[self.language]['errors']}: {self.mistakes} | {self.translations[self.language]['speed']}: {wpm:.1f} WPM"
+            self.update_stats(final=True)
+            self.display_label.config(text=self.translations[self.language]['press_enter'])
 
     def update_timer_label(self):
         minutes = self.time_left // 60
@@ -283,6 +328,10 @@ class MainActivity:
         self.timer_label.config(text=f"{minutes:02d}:{seconds:02d}")
 
     def on_key_press(self, event):
+        # If exercise is completed or time is up, ignore all input except Enter
+        if self.input_text.cget('state') == 'disabled':
+            return
+
         if not self.is_running:
             self.start_time = time.time()
             self.is_running = True
@@ -290,8 +339,12 @@ class MainActivity:
             self.root.after(1000, self.update_timer)
         input_text = self.input_text.get("1.0", "end-1c")
         self.total_chars = len(input_text)
-        self.update_stats()
-        self.highlight_keys(input_text)
+        
+        # Only update stats if exercise is not completed
+        if self.input_text.cget('state') != 'disabled':
+            self.update_stats()
+            self.highlight_keys(input_text)
+            
         if input_text == self.current_text:
             self.is_running = False
             self.input_text.config(state=DISABLED)
@@ -299,26 +352,59 @@ class MainActivity:
     def update_timer(self):
         if self.is_running and self.time_left > 0:
             self.time_left -= 1
-            self.update_stats()
+            # Only update stats if exercise is not completed
+            if self.input_text.cget('state') != 'disabled':
+                self.update_stats()
             self.update_timer_label()
             self.root.after(1000, self.update_timer)
         elif self.time_left == 0:
             self.is_running = False
             self.input_text.config(state=DISABLED)
             self.update_timer_label()
-            # Add a small delay before starting new exercise
-            self.root.after(500, self.set_exercise)
+            # Store final stats
+            elapsed = 30 - self.time_left
+            if self.mode == 'letters':
+                cpm = (self.total_chars / (elapsed / 60)) if elapsed > 0 else 0
+                self.final_stats = f"{self.translations[self.language]['errors']}: {self.mistakes} | {self.translations[self.language]['speed']}: {cpm:.1f} CPM"
+            else:
+                wpm = (self.total_chars / 5) / (elapsed / 60) if elapsed > 0 else 0
+                self.final_stats = f"{self.translations[self.language]['errors']}: {self.mistakes} | {self.translations[self.language]['speed']}: {wpm:.1f} WPM"
+            self.update_stats(final=True)
+            # Show time up message and prompt for new exercise
+            self.display_label.config(text=f"{self.translations[self.language]['time_up']}\n{self.translations[self.language]['press_enter_new']}")
+            # Clear the input field
+            self.input_text.delete("1.0", "end")
 
     def update_stats(self, final=False):
-        elapsed = 30 - self.time_left if self.is_running or final else 1
+        # If exercise is completed, only show final stats
+        if self.input_text.cget('state') == 'disabled':
+            if self.final_stats is not None:
+                self.stats_label.config(text=self.final_stats)
+            return
+
+        if final and self.final_stats is not None:
+            # Use stored final statistics
+            self.stats_label.config(text=self.final_stats)
+            return
+
+        elapsed = 30 - self.time_left if self.is_running else 1
         if self.mode == 'letters':
             # Calculate characters per minute for letter mode
             cpm = (self.total_chars / (elapsed / 60)) if elapsed > 0 else 0
-            self.stats_label.config(text=f"{self.translations[self.language]['errors']}: {self.mistakes} | {self.translations[self.language]['speed']}: {cpm:.1f} CPM")
+            stats_text = f"{self.translations[self.language]['errors']}: {self.mistakes} | {self.translations[self.language]['speed']}: {cpm:.1f} CPM"
         else:
             # Calculate words per minute for phrases and texts
             wpm = (self.total_chars / 5) / (elapsed / 60) if elapsed > 0 else 0
-            self.stats_label.config(text=f"{self.translations[self.language]['errors']}: {self.mistakes} | {self.translations[self.language]['speed']}: {wpm:.1f} WPM")
+            stats_text = f"{self.translations[self.language]['errors']}: {self.mistakes} | {self.translations[self.language]['speed']}: {wpm:.1f} WPM"
+        
+        if not final:
+            self.stats_label.config(text=stats_text)
+        else:
+            # Store final stats with current mistakes count
+            self.final_stats = stats_text
+            self.stats_label.config(text=stats_text)
+            # Prevent further updates to mistakes count
+            self.error_count = self.mistakes
 
     def highlight_keys(self, input_text):
         if not self.highlight:
@@ -480,8 +566,17 @@ class MainActivity:
         highlight_text = self.translations[self.language]['highlight_on' if self.highlight else 'highlight_off']
         self.hl_btn.config(text=highlight_text)
         
-        # Update stats label
-        self.update_stats()
+        # Update description labels
+        self.description_labels[0].config(text=self.translations[self.language]['description_change_exercise'])
+        self.description_labels[1].config(text=self.translations[self.language]['description_change_language'])
+        self.description_labels[2].config(text=self.translations[self.language]['description_toggle_highlight'])
+        
+        # Update stats label and display label if exercise is completed
+        if not self.is_running and self.input_text.cget('state') == 'disabled':
+            self.update_stats(final=True)
+            self.display_label.config(text=self.translations[self.language]['press_enter'])
+        else:
+            self.update_stats()
 
     def run(self):
         self.root.mainloop()
