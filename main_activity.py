@@ -67,8 +67,8 @@ class MainActivity:
         # Set minimum and maximum window sizes
         self.MIN_WIDTH = 800
         self.MIN_HEIGHT = 600
-        self.MAX_WIDTH = 1600
-        self.MAX_HEIGHT = 900
+        self.MAX_WIDTH = 1920
+        self.MAX_HEIGHT = 1080
         
         # Keyboard layout mapping based on physical position
         self.keyboard_positions = {
@@ -555,11 +555,11 @@ class MainActivity:
         self.root.title(self.translations[self.language]['title'])
         
         # Update mode button text
-        mode_text = f"Mode: {self.translations[self.language][f'mode_{self.mode}'].split(': ')[1]}"
+        mode_text = self.translations[self.language][f'mode_{self.mode}']
         self.mode_btn.config(text=mode_text)
         
         # Update language button text
-        lang_text = f"Lang: {self.language}"
+        lang_text = self.translations[self.language][f'lang_{self.language.lower()}']
         self.lang_btn.config(text=lang_text)
         
         # Update highlight button text
