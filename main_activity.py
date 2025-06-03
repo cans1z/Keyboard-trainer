@@ -185,18 +185,33 @@ class MainActivity:
 
         # Create display label (dimmed text)
         self.display_label = Label(text_frame, text="", anchor="w",
-                                  font=("Arial", 20, "bold"), fg="#aaaaaa", bg="#f0f0f0")
+                                  font=("Arial", 20, "bold"), fg="#aaaaaa", bg="#f0f0f0",
+                                  wraplength=0, justify=LEFT)  # Will be set dynamically
         self.display_label.pack(fill=X, expand=True)
 
+        # Create a frame for input text and scrollbar
+        input_frame = Frame(text_frame, bg="#f0f0f0")
+        input_frame.pack(fill=BOTH, expand=True)
+
         # Create input text widget (user types here)
-        self.input_text = Text(text_frame, font=("Arial", 20, "bold"),
+        self.input_text = Text(input_frame, font=("Arial", 20, "bold"),
                              fg="#000000", bg="#f0f0f0", borderwidth=0, highlightthickness=0,
-                             insertbackground="#000000", height=1)
-        self.input_text.pack(fill=X, expand=True)
+                             insertbackground="#000000", height=3, wrap=WORD)  # Increased height
+        self.input_text.pack(side=LEFT, fill=BOTH, expand=True)
+        
+        # Add vertical scrollbar
+        scrollbar = Scrollbar(input_frame, orient=VERTICAL, command=self.input_text.yview)
+        scrollbar.pack(side=RIGHT, fill=Y)
+        self.input_text.config(yscrollcommand=scrollbar.set)
+
+        # Bind events
         self.input_text.bind('<KeyRelease>', self.on_input_change)
         self.input_text.bind('<KeyPress>', self.on_key_press)
         self.input_text.bind('<Return>', self.handle_enter)
         self.input_text.bind('<FocusIn>', lambda e: self.input_text.mark_set("insert", "end"))
+        
+        # Bind to window resize event to update wraplength
+        self.root.bind('<Configure>', self.update_wraplength)
 
     def setup_bottom_frame(self):
         # Keyboard frame with pack
@@ -267,19 +282,28 @@ class MainActivity:
         self.draw_keyboard()
 
     def update_display_label(self, user_input):
-        # Show the current_text, but erase chars that have been typed correctly
-        display_chars = list(self.current_text)
-        for i, c in enumerate(user_input):
-            if i < len(display_chars) and c == display_chars[i]:
-                display_chars[i] = " "  # Erase correct char
-        display_str = "".join(display_chars)
-        self.display_label.config(text=display_str)
+        # Get the current position in the text
+        current_pos = len(user_input)
+        
+        # Show only the remaining text starting from current position
+        remaining_text = self.current_text[current_pos:]
+        
+        # If there's no remaining text, show the "press enter" message
+        if not remaining_text:
+            self.display_label.config(text=self.translations[self.language]['press_enter'])
+            return
+            
+        # Update display text
+        self.display_label.config(text=remaining_text)
         
         # Update input field to match display text length
         current_input = self.input_text.get("1.0", "end-1c")
         if len(current_input) > len(self.current_text):
             self.input_text.delete("1.0", "end")
             self.input_text.insert("1.0", current_input[:len(self.current_text)])
+            
+        # Scroll to the end of the text
+        self.input_text.see("end")
 
     def handle_enter(self, event):
         # Prevent default Enter behavior
@@ -310,7 +334,12 @@ class MainActivity:
         if len(user_input) > self.last_checked_position:
             # Check all new characters
             for i in range(self.last_checked_position, len(user_input)):
-                if user_input[i] != self.current_text[i] and user_input[i] != '\n':  # Ignore Enter key
+                # Make sure we don't go beyond the length of the current text
+                if i < len(self.current_text):
+                    if user_input[i] != self.current_text[i] and user_input[i] != '\n':  # Ignore Enter key
+                        self.error_count += 1
+                else:
+                    # If user types beyond the length of the current text, count it as an error
                     self.error_count += 1
             self.last_checked_position = len(user_input)
             self.mistakes = self.error_count
@@ -327,8 +356,8 @@ class MainActivity:
         if user_input == self.current_text:
             self.is_running = False
             self.input_text.config(state=DISABLED)
-            # Store final statistics
-            elapsed = 30 - self.time_left
+            # Calculate final statistics based on actual elapsed time
+            elapsed = time.time() - self.start_time
             if self.mode == 'letters':
                 cpm = (self.total_chars / (elapsed / 60)) if elapsed > 0 else 0
                 self.final_stats = f"{self.translations[self.language]['errors']}: {self.mistakes} | {self.translations[self.language]['speed']}: {cpm:.1f} CPM"
@@ -377,8 +406,8 @@ class MainActivity:
             self.is_running = False
             self.input_text.config(state=DISABLED)
             self.update_timer_label()
-            # Store final stats
-            elapsed = 30 - self.time_left
+            # Calculate final statistics based on actual elapsed time
+            elapsed = time.time() - self.start_time
             if self.mode == 'letters':
                 cpm = (self.total_chars / (elapsed / 60)) if elapsed > 0 else 0
                 self.final_stats = f"{self.translations[self.language]['errors']}: {self.mistakes} | {self.translations[self.language]['speed']}: {cpm:.1f} CPM"
@@ -403,7 +432,8 @@ class MainActivity:
             self.stats_label.config(text=self.final_stats)
             return
 
-        elapsed = 30 - self.time_left if self.is_running else 1
+        # Calculate elapsed time based on actual time passed
+        elapsed = time.time() - self.start_time if self.is_running else 1
         if self.mode == 'letters':
             # Calculate characters per minute for letter mode
             cpm = (self.total_chars / (elapsed / 60)) if elapsed > 0 else 0
@@ -593,6 +623,18 @@ class MainActivity:
             self.display_label.config(text=self.translations[self.language]['press_enter'])
         else:
             self.update_stats()
+
+    def update_wraplength(self, event=None):
+        # Only handle window resize events
+        if event and event.widget != self.root:
+            return
+            
+        # Update wraplength for display label
+        display_width = self.display_label.winfo_width()
+        self.display_label.config(wraplength=display_width)
+        
+        # Update text widget width
+        self.input_text.config(width=display_width // 12)  # Approximate character width
 
     def run(self):
         self.root.mainloop()
