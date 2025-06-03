@@ -7,12 +7,6 @@ import random
 EN_LETTERS = list("abcdefghijklmnopqrstuvwxyz")
 RU_LETTERS = list("йцукенгшщзхъфывапролджэячсмитьбю")
 
-# --- Placeholder for loading phrases/texts from files ---
-EN_WORDS = ["hello", "world", "computer", "keyboard", "program", "python", "code", "developer", "software", "typing", "practice", "speed", "accuracy", "learning", "training", "skill", "master", "keyboard", "layout", "efficiency"]
-RU_WORDS = ["привет", "мир", "компьютер", "клавиатура", "программа", "питон", "код", "разработчик", "программное", "обеспечение", "печатать", "практика", "скорость", "точность", "обучение", "тренировка", "навык", "мастер", "раскладка", "эффективность"]
-EN_TEXTS = ["The quick brown fox jumps over the lazy dog."]
-RU_TEXTS = ["Съешь ещё этих мягких французских булок, да выпей чаю."]
-
 class MainActivity:
     def __init__(self):
         self.root = Tk()
@@ -211,7 +205,7 @@ class MainActivity:
         self.kb_keys = []
         self.draw_keyboard()
 
-    def load_lines_from_file(self, filename, fallback):
+    def load_lines_from_file(self, filename, fallback=None):
         try:
             with open(filename, encoding='utf-8') as f:
                 lines = [line.strip() for line in f if line.strip()]
@@ -225,17 +219,39 @@ class MainActivity:
             random_letters = [random.choice(letters) for _ in range(20)]
             self.current_text = ' '.join(random_letters)
         elif self.mode == 'words':
-            words = EN_WORDS if self.language == 'EN' else RU_WORDS
-            # Select random number of words between 10 and 15
-            num_words = random.randint(10, 15)
-            selected_words = random.sample(words, num_words)
-            self.current_text = ' '.join(selected_words)
-        else:
-            if self.language == 'EN':
-                texts = self.load_lines_from_file('en_texts.txt', EN_TEXTS)
+            # Load words from words file
+            filename = 'en_words.txt' if self.language == 'EN' else 'ru_words.txt'
+            words = self.load_lines_from_file(filename, [])
+            if not words:
+                # Fallback to letters if no words file is found
+                letters = EN_LETTERS if self.language == 'EN' else RU_LETTERS
+                random_letters = [random.choice(letters) for _ in range(20)]
+                self.current_text = ' '.join(random_letters)
             else:
-                texts = self.load_lines_from_file('ru_texts.txt', RU_TEXTS)
-            self.current_text = random.choice(texts)
+                # Select exactly 15 random words
+                selected_words = random.sample(words, min(15, len(words)))
+                # Shuffle the selected words to ensure random order
+                random.shuffle(selected_words)
+                self.current_text = ' '.join(selected_words)
+        else:  # texts mode
+            filename = 'en_texts.txt' if self.language == 'EN' else 'ru_texts.txt'
+            texts = self.load_lines_from_file(filename, [])
+            if not texts:
+                # Fallback to words if no texts file is found
+                words = self.load_lines_from_file('en_words.txt' if self.language == 'EN' else 'ru_words.txt', [])
+                if not words:
+                    # Fallback to letters if no words file is found
+                    letters = EN_LETTERS if self.language == 'EN' else RU_LETTERS
+                    random_letters = [random.choice(letters) for _ in range(20)]
+                    self.current_text = ' '.join(random_letters)
+                else:
+                    # Select exactly 15 random words
+                    selected_words = random.sample(words, min(15, len(words)))
+                    # Shuffle the selected words to ensure random order
+                    random.shuffle(selected_words)
+                    self.current_text = ' '.join(selected_words)
+            else:
+                self.current_text = random.choice(texts)
         self.update_display_label("")
         self.input_text.config(state=NORMAL)
         self.input_text.delete("1.0", "end")
