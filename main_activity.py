@@ -3,7 +3,6 @@ from tkinter import ttk
 import time
 import random
 
-# --- Data for letter mode (arrays) ---
 EN_LETTERS = list("abcdefghijklmnopqrstuvwxyz")
 RU_LETTERS = list("йцукенгшщзхъфывапролджэячсмитьбю")
 
@@ -12,7 +11,6 @@ class MainActivity:
         self.root = Tk()
         self.root.title("Keyboard Trainer")
         
-        # Interface translations
         self.translations = {
             'EN': {
                 'title': 'Keyboard Trainer',
@@ -58,28 +56,22 @@ class MainActivity:
             }
         }
         
-        # Set minimum and maximum window sizes
+
         self.MIN_WIDTH = 800
         self.MIN_HEIGHT = 600
         self.MAX_WIDTH = 1920
         self.MAX_HEIGHT = 1080
         
-        # Keyboard layout mapping based on physical position
         self.keyboard_positions = {
-            # First row
             'q': 'й', 'w': 'ц', 'e': 'у', 'r': 'к', 't': 'е', 'y': 'н', 'u': 'г', 'i': 'ш', 'o': 'щ', 'p': 'з', '[': 'х', ']': 'ъ',
-            # Second row
             'a': 'ф', 's': 'ы', 'd': 'в', 'f': 'а', 'g': 'п', 'h': 'р', 'j': 'о', 'k': 'л', 'l': 'д', ';': 'ж', "'": 'э',
-            # Third row
             'z': 'я', 'x': 'ч', 'c': 'с', 'v': 'м', 'b': 'и', 'n': 'т', 'm': 'ь', ',': 'б', '.': 'ю'
         }
         self.ru_positions = {v: k for k, v in self.keyboard_positions.items()}
         
-        # Set initial size and position window in center of screen
         self.root.geometry(f"{self.MIN_WIDTH}x{self.MIN_HEIGHT}")
         self.center_window()
         
-        # Configure size restrictions
         self.root.minsize(self.MIN_WIDTH, self.MIN_HEIGHT)
         self.root.maxsize(self.MAX_WIDTH, self.MAX_HEIGHT)
         
@@ -87,7 +79,6 @@ class MainActivity:
         self.root.grid_rowconfigure(1, weight=1)
         self.root.grid_columnconfigure(1, weight=1)
 
-        # State
         self.language = 'EN'
         self.mode = 'letters'
         self.highlight = True
@@ -104,7 +95,6 @@ class MainActivity:
         self.init_gui()
         self.set_exercise()
         
-        # Bind resize event
         self.root.bind('<Configure>', self.on_window_resize)
         
     def init_styles(self):
@@ -118,13 +108,11 @@ class MainActivity:
                        font=("Arial", 20, "bold"))
 
     def init_gui(self):
-        # Create main frames with grid
         self.top_frame = Frame(self.root, bg="#f0f0f0")
         self.left_frame = Frame(self.root, bg="#f0f0f0")
         self.center_frame = Frame(self.root, bg="#f0f0f0")
         self.bottom_frame = Frame(self.root, bg="#f0f0f0")
 
-        # Grid layout for main frames
         self.top_frame.grid(row=0, column=0, columnspan=3, sticky="ew", pady=5)
         self.left_frame.grid(row=1, column=0, sticky="ns", padx=10)
         self.center_frame.grid(row=1, column=1, sticky="nsew")
@@ -136,37 +124,31 @@ class MainActivity:
         self.setup_bottom_frame()
 
     def setup_top_frame(self):
-        # Create a frame for timer
         timer_frame = Frame(self.top_frame, bg="#f0f0f0")
         timer_frame.pack(fill=X, pady=(0, 5))
         
-        # Timer with pack
         self.timer_label = Label(timer_frame, text="01:00", 
                                font=("Arial", 14, "bold"), bg="#f0f0f0", fg="black")
         self.timer_label.pack(expand=True)
         
-        # Stats with pack
         self.stats_label = Label(self.top_frame, text="Errors: 0 | Speed: 0 WPM", 
                                font=("Arial", 14), bg="#f0f0f0")
         self.stats_label.pack(fill=X, expand=True)
 
     def setup_left_frame(self):
-        # Control buttons with pack
         button_configs = [
             ("Mode: Letters", "description_change_exercise", self.toggle_mode),
             ("Lang: EN", "description_change_language", self.toggle_language),
             ("Highlight: ON", "description_toggle_highlight", self.toggle_highlight)
         ]
 
-        self.description_labels = []  # Store references to description labels
+        self.description_labels = []
         for btn_text, label_key, command in button_configs:
-            # Create and pack the description label first
             label = Label(self.left_frame, text=self.translations[self.language][label_key], 
                          font=("Arial", 10), bg="#f0f0f0")
             label.pack(pady=(10, 0))
             self.description_labels.append(label)
             
-            # Then create and pack the button
             btn = Button(self.left_frame, text=btn_text, font=("Arial", 12),
                         width=14, command=command)
             btn.pack(pady=(0, 10))
@@ -179,42 +161,34 @@ class MainActivity:
                 self.hl_btn = btn
 
     def setup_center_frame(self):
-        # Create a frame to hold the text display
         text_frame = Frame(self.center_frame, bg="#f0f0f0")
         text_frame.pack(fill=X, expand=True, padx=20, pady=0)
 
-        # Create display label (dimmed text)
         self.display_label = Label(text_frame, text="", anchor="w",
                                   font=("Arial", 20, "bold"), fg="#aaaaaa", bg="#f0f0f0",
                                   wraplength=0, justify=LEFT)  # Will be set dynamically
         self.display_label.pack(fill=X, expand=True)
 
-        # Create a frame for input text and scrollbar
         input_frame = Frame(text_frame, bg="#f0f0f0")
         input_frame.pack(fill=BOTH, expand=True)
 
-        # Create input text widget (user types here)
         self.input_text = Text(input_frame, font=("Arial", 20, "bold"),
                              fg="#000000", bg="#f0f0f0", borderwidth=0, highlightthickness=0,
-                             insertbackground="#000000", height=3, wrap=WORD)  # Increased height
+                             insertbackground="#000000", height=3, wrap=WORD)
         self.input_text.pack(side=LEFT, fill=BOTH, expand=True)
         
-        # Add vertical scrollbar
         scrollbar = Scrollbar(input_frame, orient=VERTICAL, command=self.input_text.yview)
         scrollbar.pack(side=RIGHT, fill=Y)
         self.input_text.config(yscrollcommand=scrollbar.set)
 
-        # Bind events
         self.input_text.bind('<KeyRelease>', self.on_input_change)
         self.input_text.bind('<KeyPress>', self.on_key_press)
         self.input_text.bind('<Return>', self.handle_enter)
         self.input_text.bind('<FocusIn>', lambda e: self.input_text.mark_set("insert", "end"))
         
-        # Bind to window resize event to update wraplength
         self.root.bind('<Configure>', self.update_wraplength)
 
     def setup_bottom_frame(self):
-        # Keyboard frame with pack
         self.kb_frame = Frame(self.bottom_frame, bg="#f0f0f0")
         self.kb_frame.pack(expand=True)
         self.kb_keys = []
@@ -234,35 +208,27 @@ class MainActivity:
             random_letters = [random.choice(letters) for _ in range(20)]
             self.current_text = ' '.join(random_letters)
         elif self.mode == 'words':
-            # Load words from words file
             filename = 'en_words.txt' if self.language == 'EN' else 'ru_words.txt'
             words = self.load_lines_from_file(filename, [])
             if not words:
-                # Fallback to letters if no words file is found
                 letters = EN_LETTERS if self.language == 'EN' else RU_LETTERS
                 random_letters = [random.choice(letters) for _ in range(20)]
                 self.current_text = ' '.join(random_letters)
             else:
-                # Select exactly 15 random words
                 selected_words = random.sample(words, min(15, len(words)))
-                # Shuffle the selected words to ensure random order
                 random.shuffle(selected_words)
                 self.current_text = ' '.join(selected_words)
-        else:  # texts mode
+        else:
             filename = 'en_texts.txt' if self.language == 'EN' else 'ru_texts.txt'
             texts = self.load_lines_from_file(filename, [])
             if not texts:
-                # Fallback to words if no texts file is found
                 words = self.load_lines_from_file('en_words.txt' if self.language == 'EN' else 'ru_words.txt', [])
                 if not words:
-                    # Fallback to letters if no words file is found
                     letters = EN_LETTERS if self.language == 'EN' else RU_LETTERS
                     random_letters = [random.choice(letters) for _ in range(20)]
                     self.current_text = ' '.join(random_letters)
                 else:
-                    # Select exactly 15 random words
                     selected_words = random.sample(words, min(15, len(words)))
-                    # Shuffle the selected words to ensure random order
                     random.shuffle(selected_words)
                     self.current_text = ' '.join(selected_words)
             else:
@@ -282,81 +248,63 @@ class MainActivity:
         self.draw_keyboard()
 
     def update_display_label(self, user_input):
-        # Get the current position in the text
         current_pos = len(user_input)
-        
-        # Show only the remaining text starting from current position
+
         remaining_text = self.current_text[current_pos:]
-        
-        # If there's no remaining text, show the "press enter" message
+
         if not remaining_text:
             self.display_label.config(text=self.translations[self.language]['press_enter'])
             return
-            
-        # Update display text
+
         self.display_label.config(text=remaining_text)
-        
-        # Update input field to match display text length
+
         current_input = self.input_text.get("1.0", "end-1c")
         if len(current_input) > len(self.current_text):
             self.input_text.delete("1.0", "end")
             self.input_text.insert("1.0", current_input[:len(self.current_text)])
-            
-        # Scroll to the end of the text
+
         self.input_text.see("end")
 
     def handle_enter(self, event):
-        # Prevent default Enter behavior
         if not self.is_running:
-            # Only reset stats if exercise was completed
             if self.input_text.cget('state') == 'disabled':
                 self.final_stats = None
             self.set_exercise()
             self.display_label.config(text=self.current_text)
-        return "break"  # This prevents the Enter from being added to the text
+        return "break" 
 
     def on_input_change(self, event=None):
-        # If exercise is completed or time is up, ignore all input except Enter
         if self.input_text.cget('state') == 'disabled':
             return
 
         user_input = self.input_text.get("1.0", "end-1c")
         self.update_display_label(user_input)
-        
-        # Start timer on first input if not running
+
         if not self.is_running and user_input:
             self.is_running = True
             self.start_time = time.time()
             self.time_left = 30
             self.root.after(1000, self.update_timer)
-        
-        # Check for new mistakes only when typing forward
+
         if len(user_input) > self.last_checked_position:
-            # Check all new characters
             for i in range(self.last_checked_position, len(user_input)):
-                # Make sure we don't go beyond the length of the current text
                 if i < len(self.current_text):
                     if user_input[i] != self.current_text[i] and user_input[i] != '\n':  # Ignore Enter key
                         self.error_count += 1
                 else:
-                    # If user types beyond the length of the current text, count it as an error
                     self.error_count += 1
             self.last_checked_position = len(user_input)
             self.mistakes = self.error_count
-        
-        # Count total characters excluding Enter
+
         self.total_chars = len(user_input.replace('\n', ''))
-        
-        # Only update stats if exercise is not completed
+
         if self.input_text.cget('state') != 'disabled':
             self.update_stats()
             self.highlight_keys(user_input)
         
-        # Stop timer and disable input when text is completed
         if user_input == self.current_text:
             self.is_running = False
             self.input_text.config(state=DISABLED)
-            # Calculate final statistics based on actual elapsed time
             elapsed = time.time() - self.start_time
             if self.mode == 'letters':
                 cpm = (self.total_chars / (elapsed / 60)) if elapsed > 0 else 0
@@ -373,7 +321,6 @@ class MainActivity:
         self.timer_label.config(text=f"{minutes:02d}:{seconds:02d}")
 
     def on_key_press(self, event):
-        # If exercise is completed or time is up, ignore all input except Enter
         if self.input_text.cget('state') == 'disabled':
             return
 
@@ -385,7 +332,6 @@ class MainActivity:
         input_text = self.input_text.get("1.0", "end-1c")
         self.total_chars = len(input_text)
         
-        # Only update stats if exercise is not completed
         if self.input_text.cget('state') != 'disabled':
             self.update_stats()
             self.highlight_keys(input_text)
@@ -397,7 +343,6 @@ class MainActivity:
     def update_timer(self):
         if self.is_running and self.time_left > 0:
             self.time_left -= 1
-            # Only update stats if exercise is not completed
             if self.input_text.cget('state') != 'disabled':
                 self.update_stats()
             self.update_timer_label()
@@ -406,7 +351,6 @@ class MainActivity:
             self.is_running = False
             self.input_text.config(state=DISABLED)
             self.update_timer_label()
-            # Calculate final statistics based on actual elapsed time
             elapsed = time.time() - self.start_time
             if self.mode == 'letters':
                 cpm = (self.total_chars / (elapsed / 60)) if elapsed > 0 else 0
@@ -415,41 +359,32 @@ class MainActivity:
                 wpm = (self.total_chars / 5) / (elapsed / 60) if elapsed > 0 else 0
                 self.final_stats = f"{self.translations[self.language]['errors']}: {self.mistakes} | {self.translations[self.language]['speed']}: {wpm:.1f} WPM"
             self.update_stats(final=True)
-            # Show time up message and prompt for new exercise
             self.display_label.config(text=f"{self.translations[self.language]['time_up']}\n{self.translations[self.language]['press_enter_new']}")
-            # Clear the input field
             self.input_text.delete("1.0", "end")
 
     def update_stats(self, final=False):
-        # If exercise is completed, only show final stats
         if self.input_text.cget('state') == 'disabled':
             if self.final_stats is not None:
                 self.stats_label.config(text=self.final_stats)
             return
 
         if final and self.final_stats is not None:
-            # Use stored final statistics
             self.stats_label.config(text=self.final_stats)
             return
 
-        # Calculate elapsed time based on actual time passed
         elapsed = time.time() - self.start_time if self.is_running else 1
         if self.mode == 'letters':
-            # Calculate characters per minute for letter mode
             cpm = (self.total_chars / (elapsed / 60)) if elapsed > 0 else 0
             stats_text = f"{self.translations[self.language]['errors']}: {self.mistakes} | {self.translations[self.language]['speed']}: {cpm:.1f} CPM"
         else:
-            # Calculate words per minute for phrases and texts
             wpm = (self.total_chars / 5) / (elapsed / 60) if elapsed > 0 else 0
             stats_text = f"{self.translations[self.language]['errors']}: {self.mistakes} | {self.translations[self.language]['speed']}: {wpm:.1f} WPM"
         
         if not final:
             self.stats_label.config(text=stats_text)
         else:
-            # Store final stats with current mistakes count
             self.final_stats = stats_text
             self.stats_label.config(text=stats_text)
-            # Prevent further updates to mistakes count
             self.error_count = self.mistakes
 
     def highlight_keys(self, input_text):
@@ -459,34 +394,27 @@ class MainActivity:
             return
 
         layout = sum(self.get_keyboard_layout(), [])
-        # Reset all keys to white
         for btn in self.kb_keys:
             btn.config(bg="white")
 
         if input_text:
             last_char = input_text[-1]
-            # Get the expected character from the current text
             expected_char = self.current_text[len(input_text)-1] if len(input_text) <= len(self.current_text) else last_char
             
-            # Get the physical key position
             physical_key = None
             if self.language == 'EN':
-                # If we're typing in English but text is in Russian
                 if last_char in self.ru_positions:
                     physical_key = self.ru_positions[last_char]
                 else:
                     physical_key = last_char
             else:
-                # If we're typing in Russian but text is in English
                 if last_char in self.keyboard_positions:
                     physical_key = self.keyboard_positions[last_char]
                 else:
                     physical_key = last_char
 
-            # Check if the typed character matches the expected character
             correct = last_char == expected_char
 
-            # Highlight the key at the physical position
             for btn, key in zip(self.kb_keys, layout):
                 if key == physical_key:
                     btn.config(bg="#90ee90" if correct else "#ff6961")
@@ -538,27 +466,21 @@ class MainActivity:
             ]
 
     def center_window(self):
-        # Get screen dimensions
         screen_width = self.root.winfo_screenwidth()
         screen_height = self.root.winfo_screenheight()
         
-        # Calculate position coordinates
         x = (screen_width - self.MIN_WIDTH) // 2
         y = (screen_height - self.MIN_HEIGHT) // 2
         
-        # Set window position
         self.root.geometry(f"+{x}+{y}")
 
     def on_window_resize(self, event=None):
-        # Only handle window resize events and enforce size limits
         if event and event.widget != self.root:
             return
 
-        # Get window dimensions
         window_width = self.root.winfo_width()
         window_height = self.root.winfo_height()
 
-        # Enforce size limits
         if window_width < self.MIN_WIDTH:
             self.root.geometry(f"{self.MIN_WIDTH}x{window_height}")
             window_width = self.MIN_WIDTH
@@ -573,51 +495,40 @@ class MainActivity:
             self.root.geometry(f"{window_width}x{self.MAX_HEIGHT}")
             window_height = self.MAX_HEIGHT
 
-        # Scale fonts based on window size
         base_size = min(window_width // 60, window_height // 30)
         text_size = max(16, min(24, base_size))
         button_size = max(12, min(18, base_size - 2))
         
-        # Update font sizes
         self.stats_label.config(font=("Arial", text_size))
         self.timer_label.config(font=("Arial", text_size, "bold"))
         self.display_label.config(font=("Arial", text_size, "bold"))
         
-        # Update button fonts
         for btn in [self.mode_btn, self.lang_btn, self.hl_btn]:
             btn.config(font=("Arial", button_size))
             
-        # Scale keyboard
         kb_key_size = max(10, min(16, base_size - 4))
         for key in self.kb_keys:
             key.config(font=("Arial", kb_key_size))
 
-        # Adjust text display height based on window height
         text_height = max(2, min(4, window_height // 200))
         self.display_label.config(height=text_height)
 
     def update_interface_language(self):
-        # Update window title
         self.root.title(self.translations[self.language]['title'])
         
-        # Update mode button text
         mode_text = self.translations[self.language][f'mode_{self.mode}']
         self.mode_btn.config(text=mode_text)
         
-        # Update language button text
         lang_text = self.translations[self.language][f'lang_{self.language.lower()}']
         self.lang_btn.config(text=lang_text)
         
-        # Update highlight button text
         highlight_text = self.translations[self.language]['highlight_on' if self.highlight else 'highlight_off']
         self.hl_btn.config(text=highlight_text)
         
-        # Update description labels
         self.description_labels[0].config(text=self.translations[self.language]['description_change_exercise'])
         self.description_labels[1].config(text=self.translations[self.language]['description_change_language'])
         self.description_labels[2].config(text=self.translations[self.language]['description_toggle_highlight'])
         
-        # Update stats label and display label if exercise is completed
         if not self.is_running and self.input_text.cget('state') == 'disabled':
             self.update_stats(final=True)
             self.display_label.config(text=self.translations[self.language]['press_enter'])
@@ -625,16 +536,11 @@ class MainActivity:
             self.update_stats()
 
     def update_wraplength(self, event=None):
-        # Only handle window resize events
         if event and event.widget != self.root:
             return
-            
-        # Update wraplength for display label
         display_width = self.display_label.winfo_width()
-        self.display_label.config(wraplength=display_width)
-        
-        # Update text widget width
-        self.input_text.config(width=display_width // 12)  # Approximate character width
+        self.display_label.config(wraplength=display_width)        
+        self.input_text.config(width=display_width // 12) 
 
     def run(self):
         self.root.mainloop()
